@@ -1,49 +1,29 @@
-const http = require('http');
-const cors_proxy = require('./lib/cors-anywhere');
+const express = require('express');
+const corsAnywhere = require('./lib/cors-anywhere');
 
-// Environment variables
-const host = process.env.HOST || '0.0.0.0';
+const app = express();
 const port = process.env.PORT || 8080;
+const host = process.env.HOST || '0.0.0.0';
 
-// Origin whitelist/blacklist
-function parseEnvList(env) {
-  return env ? env.split(',') : [];
-}
-const originBlacklist = parseEnvList(process.env.CORSANYWHERE_BLACKLIST);
-const originWhitelist = parseEnvList(process.env.CORSANYWHERE_WHITELIST);
-const checkRateLimit = require('./lib/rate-limit')(process.env.CORSANYWHERE_RATELIMIT);
-
-// Start proxy server instance
-const proxy = cors_proxy.createServer({
-  originBlacklist,
-  originWhitelist,
+// Create the proxy server
+const proxy = corsAnywhere.createServer({
+  originWhitelist: [], // Allow all origins
   requireHeader: ['origin', 'x-requested-with', 'apikey'],
-  checkRateLimit,
   removeHeaders: [
-    'cookie',
-    'cookie2',
-    'x-request-start',
-    'x-request-id',
-    'via',
-    'connect-time',
-    'total-route-time',
+    'cookie', 'cookie2',
+    'x-request-start', 'x-request-id', 'via',
+    'connect-time', 'total-route-time'
   ],
-  redirectSameOrigin: true,
-  httpProxyOptions: {
-    xfwd: false,
-  },
 });
 
-// Custom route handler for /fetch/
-http.createServer((req, res) => {
-  if (req.url.startsWith('/fetch/')) {
-    // Strip `/fetch` from URL before passing to proxy
-    req.url = req.url.replace(/^\/fetch/, '');
-    proxy.emit('request', req, res);
-  } else {
-    res.writeHead(404, { 'Content-Type': 'text/plain' });
-    res.end('Not Found');
-  }
-}).listen(port, host, () => {
-  console.log(`Running CORS Anywhere on ${host}:${port}`);
+// Mount CORS proxy at `/fetch/:encodedUrl`
+app.use('/fetch', (req, res) => {
+  const encodedUrl = req.url.slice(1); // Remove initial `/`
+  req.url = decodeURIComponent(encodedUrl);
+  proxy.emit('request', req, res);
+});
+
+// Start server
+app.listen(port, host, () => {
+  console.log(`CORS Proxy running at http://${host}:${port}`);
 });
