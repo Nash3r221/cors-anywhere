@@ -1,19 +1,26 @@
-var cors_proxy = require('./lib/cors-anywhere');
+const express = require('express');
+const cors_proxy = require('cors-anywhere');
 
-// Optional: configure whitelist/blacklist via environment
-var host = process.env.HOST || '0.0.0.0';
-var port = process.env.PORT || 8080;
+const app = express();
+const port = process.env.PORT || 8080;
 
-var originBlacklist = [];
-var originWhitelist = [];
+const originWhitelist = []; // Allow all origins
 
-cors_proxy.createServer({
-  originBlacklist: originBlacklist,
-  originWhitelist: originWhitelist,
-  requireHeader: ['origin', 'x-requested-with', 'apikey'], // if needed
-  removeHeaders: [
-    'cookie', 'cookie2'
-  ]
-}).listen(port, host, function () {
-  console.log('Running CORS Anywhere on ' + host + ':' + port);
+app.get('/', (req, res) => {
+  res.send('🟢 Raven CORS Proxy is running.');
+});
+
+app.use('/', (req, res) => {
+  req.headers['origin'] = req.headers['origin'] || 'http://localhost:8080';
+  req.headers['x-requested-with'] = req.headers['x-requested-with'] || 'XMLHttpRequest';
+  req.headers['apikey'] = req.headers['apikey'] || 'zR3bM_l5JEE41nnMrqM80w';
+  cors_proxy.createServer({
+    originWhitelist,
+    requireHeader: ['origin', 'x-requested-with', 'apikey'],
+    removeHeaders: ['cookie', 'cookie2']
+  }).emit('request', req, res);
+});
+
+app.listen(port, () => {
+  console.log(`CORS Anywhere proxy running on port ${port}`);
 });
