@@ -1,29 +1,19 @@
-const express = require('express');
-const corsAnywhere = require('./lib/cors-anywhere');
+var cors_proxy = require('./lib/cors-anywhere');
 
-const app = express();
-const port = process.env.PORT || 8080;
-const host = process.env.HOST || '0.0.0.0';
+// Optional: configure whitelist/blacklist via environment
+var host = process.env.HOST || '0.0.0.0';
+var port = process.env.PORT || 8080;
 
-// Create the proxy server
-const proxy = corsAnywhere.createServer({
-  originWhitelist: [], // Allow all origins
-  requireHeader: ['origin', 'x-requested-with', 'apikey'],
+var originBlacklist = [];
+var originWhitelist = [];
+
+cors_proxy.createServer({
+  originBlacklist: originBlacklist,
+  originWhitelist: originWhitelist,
+  requireHeader: ['origin', 'x-requested-with', 'apikey'], // if needed
   removeHeaders: [
-    'cookie', 'cookie2',
-    'x-request-start', 'x-request-id', 'via',
-    'connect-time', 'total-route-time'
-  ],
-});
-
-// Mount CORS proxy at `/fetch/:encodedUrl`
-app.use('/fetch', (req, res) => {
-  const encodedUrl = req.url.slice(1); // Remove initial `/`
-  req.url = decodeURIComponent(encodedUrl);
-  proxy.emit('request', req, res);
-});
-
-// Start server
-app.listen(port, host, () => {
-  console.log(`CORS Proxy running at http://${host}:${port}`);
+    'cookie', 'cookie2'
+  ]
+}).listen(port, host, function () {
+  console.log('Running CORS Anywhere on ' + host + ':' + port);
 });
